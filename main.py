@@ -95,48 +95,48 @@ class ObjectDetector:
         return detections
 
 def main():
-    # Initialize magnetic coil and player
+
     magnetic_coil = MagneticCoil()
     player = Player()
 
-    # Load object detection model
+
     object_detector = ObjectDetector()
     model_path = "path_to_model/frozen_inference_graph.pb"
     config_path = "path_to_model/ssd_mobilenet_v2_coco.pbtxt"
     object_detector.load_model(model_path, config_path)
 
-    # Set up camera
+
     camera = cv2.VideoCapture(0)
 
     while True:
-        # Read frame from camera
+
         ret, frame = camera.read()
 
-        # Detect objects in the frame
+
         detections = object_detector.detect_objects(frame)
 
-        # Process detections
+
         for i in range(detections.shape[2]):
             confidence = detections[0, 0, i, 2]
             if confidence > 0.5:
                 class_id = int(detections[0, 0, i, 1])
-                if class_id == 1:  # Assuming class_id 1 corresponds to the player object
+                if class_id == 1:  
                     x = int(detections[0, 0, i, 3] * frame.shape[1])
                     y = int(detections[0, 0, i, 4] * frame.shape[0])
                     cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-                    # Control player's movement based on detected position
+
                     player.move(np.array([(x - frame.shape[1] / 2) / (frame.shape[1] / 2),
                                           (y - frame.shape[0] / 2) / (frame.shape[0] / 2),
                                           0.0]))
 
-        # Show frame with detections
+
         cv2.imshow("Object Detection", frame)
 
-        # Check for exit key
+
         if cv2.waitKey(1) == ord('q'):
             break
 
-    # Release camera and destroy windows
+
     camera.release()
     cv2.destroyAllWindows()
 
