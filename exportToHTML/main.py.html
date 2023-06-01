@@ -1,0 +1,176 @@
+<html>
+<head>
+<title>main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #6897bb;}
+.s3 { color: #808080;}
+.s4 { color: #6a8759;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+main.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">cv2</span>
+<span class="s0">import </span><span class="s1">numpy </span><span class="s0">as </span><span class="s1">np</span>
+<span class="s0">import </span><span class="s1">math</span>
+<span class="s0">import </span><span class="s1">random</span>
+
+
+<span class="s0">class </span><span class="s1">MagneticCoil:</span>
+    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">position):</span>
+        <span class="s1">self.current = </span><span class="s2">2.0  </span><span class="s3"># Amperes</span>
+        <span class="s1">self.wire_radius = </span><span class="s2">0.0003  </span><span class="s3"># meters</span>
+        <span class="s1">self.wire_length = </span><span class="s2">9.0  </span><span class="s3"># meters</span>
+        <span class="s1">self.num_wraps = </span><span class="s2">214</span>
+        <span class="s1">self.coil_radius = </span><span class="s2">0.05  </span><span class="s3"># meters</span>
+        <span class="s1">self.max_force = </span><span class="s2">20.0  </span><span class="s3"># Newtons</span>
+        <span class="s1">self.position = position</span>
+
+    <span class="s0">def </span><span class="s1">get_magnetic_force(self</span><span class="s0">, </span><span class="s1">position</span><span class="s0">, </span><span class="s1">velocity):</span>
+        <span class="s3"># Calculate the magnetic force between the coil and the player</span>
+        <span class="s1">distance = np.linalg.norm(position - self.position)</span>
+        <span class="s1">direction = (self.position - position) / distance</span>
+        <span class="s1">magnetic_force = direction * distance  </span><span class="s3"># Adjust this calculation based on your requirements</span>
+        <span class="s0">return </span><span class="s1">magnetic_force</span>
+
+
+<span class="s0">class </span><span class="s1">Player:</span>
+    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">max_speed=</span><span class="s2">4.5</span><span class="s1">):</span>
+        <span class="s1">self.max_speed = max_speed</span>
+        <span class="s1">self.drag_coefficient = </span><span class="s2">1.0</span>
+        <span class="s1">self.hydro_radius = </span><span class="s2">0.3314</span>
+        <span class="s1">self.fluid_viscosity = </span><span class="s2">0.00089</span>
+        <span class="s1">self.rb = </span><span class="s0">None</span>
+        <span class="s1">self.magnetic_force = </span><span class="s0">None</span>
+        <span class="s1">self.coils = </span><span class="s0">None</span>
+        <span class="s1">self.is_moving = </span><span class="s0">False</span>
+        <span class="s1">self.target_position = </span><span class="s0">None  </span><span class="s3"># New attribute to store the target position</span>
+
+    <span class="s0">def </span><span class="s1">start(self</span><span class="s0">, </span><span class="s1">rb</span><span class="s0">, </span><span class="s1">coils):</span>
+        <span class="s1">self.rb = rb</span>
+        <span class="s1">self.coils = coils</span>
+
+    <span class="s0">def </span><span class="s1">move(self</span><span class="s0">, </span><span class="s1">direction):</span>
+        <span class="s0">if </span><span class="s1">self.rb </span><span class="s0">is not None</span><span class="s1">:</span>
+            <span class="s1">desired_velocity = direction * self.max_speed</span>
+            <span class="s1">velocity_change = desired_velocity - self.rb.velocity</span>
+            <span class="s1">self.rb.add_force(velocity_change</span><span class="s0">, </span><span class="s1">force_mode=</span><span class="s4">&quot;VelocityChange&quot;</span><span class="s1">)</span>
+
+    <span class="s0">def </span><span class="s1">update_coils(self):</span>
+        <span class="s0">if </span><span class="s1">self.rb </span><span class="s0">is not None and </span><span class="s1">self.coils </span><span class="s0">is not None and </span><span class="s1">self.target_position </span><span class="s0">is not None</span><span class="s1">:</span>
+            <span class="s1">player_position = self.rb.position</span>
+
+            <span class="s0">for </span><span class="s1">coil </span><span class="s0">in </span><span class="s1">self.coils:</span>
+                <span class="s1">magnetic_force = coil.get_magnetic_force(player_position</span><span class="s0">, </span><span class="s1">self.rb.velocity)</span>
+                <span class="s1">self.rb.add_force(magnetic_force)</span>
+
+                <span class="s3"># Calculate the force needed to move the coil towards the target position</span>
+                <span class="s1">coil_direction = (self.target_position - coil.position) / np.linalg.norm(</span>
+                    <span class="s1">self.target_position - coil.position)</span>
+                <span class="s1">force_to_target = coil_direction * </span><span class="s2">10.0  </span><span class="s3"># Adjust this calculation based on your requirements</span>
+                <span class="s1">self.rb.add_force(force_to_target)</span>
+
+    <span class="s0">def </span><span class="s1">update(self</span><span class="s0">, </span><span class="s1">position</span><span class="s0">, </span><span class="s1">velocity):</span>
+        <span class="s1">self.magnetic_force = np.zeros(</span><span class="s2">3</span><span class="s1">)</span>
+        <span class="s0">for </span><span class="s1">coil </span><span class="s0">in </span><span class="s1">self.coils:</span>
+            <span class="s1">self.magnetic_force += coil.get_magnetic_force(position</span><span class="s0">, </span><span class="s1">velocity)</span>
+
+        <span class="s1">speed = np.linalg.norm(velocity)</span>
+        <span class="s1">drag_force = self.drag_coefficient * self.fluid_viscosity * np.pi * self.hydro_radius * speed</span>
+        <span class="s1">drag = -drag_force * velocity / speed </span><span class="s0">if </span><span class="s1">speed &gt; </span><span class="s2">0 </span><span class="s0">else </span><span class="s1">np.zeros(</span><span class="s2">3</span><span class="s1">)</span>
+        <span class="s1">self.rb.add_force(drag)</span>
+
+        <span class="s0">if </span><span class="s1">speed &gt; self.max_speed:</span>
+            <span class="s1">self.rb.velocity = self.rb.velocity / np.linalg.norm(self.rb.velocity) * self.max_speed</span>
+
+
+<span class="s0">class </span><span class="s1">ColorTracker:</span>
+    <span class="s0">def </span><span class="s1">__init__(self</span><span class="s0">, </span><span class="s1">lower_color</span><span class="s0">, </span><span class="s1">upper_color):</span>
+        <span class="s1">self.lower_color = np.array(lower_color</span><span class="s0">, </span><span class="s1">dtype=np.uint8)</span>
+        <span class="s1">self.upper_color = np.array(upper_color</span><span class="s0">, </span><span class="s1">dtype=np.uint8)</span>
+
+    <span class="s0">def </span><span class="s1">track_color(self</span><span class="s0">, </span><span class="s1">frame):</span>
+        <span class="s1">hsv = cv2.cvtColor(frame</span><span class="s0">, </span><span class="s1">cv2.COLOR_BGR2HSV)</span>
+        <span class="s1">mask = cv2.inRange(hsv</span><span class="s0">, </span><span class="s1">self.lower_color</span><span class="s0">, </span><span class="s1">self.upper_color)</span>
+        <span class="s1">contours</span><span class="s0">, </span><span class="s1">_ = cv2.findContours(mask</span><span class="s0">, </span><span class="s1">cv2.RETR_EXTERNAL</span><span class="s0">, </span><span class="s1">cv2.CHAIN_APPROX_SIMPLE)</span>
+
+        <span class="s0">if </span><span class="s1">len(contours) &gt; </span><span class="s2">0</span><span class="s1">:</span>
+            <span class="s1">largest_contour = max(contours</span><span class="s0">, </span><span class="s1">key=cv2.contourArea)</span>
+            <span class="s1">x</span><span class="s0">, </span><span class="s1">y</span><span class="s0">, </span><span class="s1">w</span><span class="s0">, </span><span class="s1">h = cv2.boundingRect(largest_contour)</span>
+            <span class="s1">detection = np.array(</span>
+                <span class="s1">[[x / frame.shape[</span><span class="s2">1</span><span class="s1">]</span><span class="s0">, </span><span class="s1">y / frame.shape[</span><span class="s2">0</span><span class="s1">]</span><span class="s0">, </span><span class="s1">(x + w) / frame.shape[</span><span class="s2">1</span><span class="s1">]</span><span class="s0">, </span><span class="s1">(y + h) / frame.shape[</span><span class="s2">0</span><span class="s1">]]])</span>
+        <span class="s0">else</span><span class="s1">:</span>
+            <span class="s1">detection = np.empty((</span><span class="s2">0</span><span class="s0">, </span><span class="s2">4</span><span class="s1">))</span>
+
+        <span class="s0">return </span><span class="s1">detection</span>
+
+
+<span class="s0">def </span><span class="s1">main():</span>
+    <span class="s3"># Initialize magnetic coils and player</span>
+    <span class="s1">coils = []</span>
+    <span class="s1">coil_positions = [(</span><span class="s2">0.1</span><span class="s0">, </span><span class="s2">0.1</span><span class="s1">)</span><span class="s0">, </span><span class="s1">(</span><span class="s2">0.1</span><span class="s0">, </span><span class="s2">0.9</span><span class="s1">)</span><span class="s0">, </span><span class="s1">(</span><span class="s2">0.9</span><span class="s0">, </span><span class="s2">0.1</span><span class="s1">)</span><span class="s0">, </span><span class="s1">(</span><span class="s2">0.9</span><span class="s0">, </span><span class="s2">0.9</span><span class="s1">)]  </span><span class="s3"># Example coil positions</span>
+    <span class="s0">for </span><span class="s1">position </span><span class="s0">in </span><span class="s1">coil_positions:</span>
+        <span class="s1">coils.append(MagneticCoil(position))</span>
+
+    <span class="s1">player = Player()</span>
+
+    <span class="s3"># Set up color tracker</span>
+    <span class="s1">color_tracker = ColorTracker([</span><span class="s2">0</span><span class="s0">, </span><span class="s2">0</span><span class="s0">, </span><span class="s2">0</span><span class="s1">]</span><span class="s0">,</span>
+                                 <span class="s1">[</span><span class="s2">50</span><span class="s0">, </span><span class="s2">50</span><span class="s0">, </span><span class="s2">50</span><span class="s1">])  </span><span class="s3"># Adjust the lower and upper color values as per your requirement</span>
+
+    <span class="s3"># Set up camera</span>
+    <span class="s1">camera = cv2.VideoCapture(</span><span class="s2">0</span><span class="s1">)</span>
+
+    <span class="s0">while True</span><span class="s1">:</span>
+        <span class="s3"># Read frame from camera</span>
+        <span class="s1">ret</span><span class="s0">, </span><span class="s1">frame = camera.read()</span>
+
+        <span class="s3"># Track color in the frame</span>
+        <span class="s1">detection = color_tracker.track_color(frame)</span>
+
+        <span class="s3"># Process detection</span>
+        <span class="s0">if </span><span class="s1">len(detection) &gt; </span><span class="s2">0</span><span class="s1">:</span>
+            <span class="s1">x</span><span class="s0">, </span><span class="s1">y</span><span class="s0">, </span><span class="s1">_</span><span class="s0">, </span><span class="s1">_ = detection[</span><span class="s2">0</span><span class="s1">]</span>
+            <span class="s1">x = int(x * frame.shape[</span><span class="s2">1</span><span class="s1">])</span>
+            <span class="s1">y = int(y * frame.shape[</span><span class="s2">0</span><span class="s1">])</span>
+            <span class="s1">cv2.circle(frame</span><span class="s0">, </span><span class="s1">(x</span><span class="s0">, </span><span class="s1">y)</span><span class="s0">, </span><span class="s2">5</span><span class="s0">, </span><span class="s1">(</span><span class="s2">0</span><span class="s0">, </span><span class="s2">255</span><span class="s0">, </span><span class="s2">0</span><span class="s1">)</span><span class="s0">, </span><span class="s1">-</span><span class="s2">1</span><span class="s1">)</span>
+
+            <span class="s3"># Set the target position based on the detected position</span>
+            <span class="s1">target_x = random.uniform(</span><span class="s2">0</span><span class="s0">, </span><span class="s1">frame.shape[</span><span class="s2">1</span><span class="s1">])</span>
+            <span class="s1">target_y = random.uniform(</span><span class="s2">0</span><span class="s0">, </span><span class="s1">frame.shape[</span><span class="s2">0</span><span class="s1">])</span>
+            <span class="s1">target_position = np.array([target_x</span><span class="s0">, </span><span class="s1">target_y])</span>
+
+            <span class="s3"># Update the player's target position</span>
+            <span class="s1">player.target_position = target_position</span>
+
+            <span class="s3"># Control player's movement based on detected position</span>
+            <span class="s1">player.move(np.array([(x - frame.shape[</span><span class="s2">1</span><span class="s1">] / </span><span class="s2">2</span><span class="s1">) / (frame.shape[</span><span class="s2">1</span><span class="s1">] / </span><span class="s2">2</span><span class="s1">)</span><span class="s0">,</span>
+                                  <span class="s1">(y - frame.shape[</span><span class="s2">0</span><span class="s1">] / </span><span class="s2">2</span><span class="s1">) / (frame.shape[</span><span class="s2">0</span><span class="s1">] / </span><span class="s2">2</span><span class="s1">)</span><span class="s0">,</span>
+                                  <span class="s2">0.0</span><span class="s1">]))</span>
+
+        <span class="s3"># Update the coils based on the player's position and target position</span>
+        <span class="s1">player.update_coils()</span>
+
+        <span class="s3"># Show frame with detections</span>
+        <span class="s1">cv2.imshow(</span><span class="s4">&quot;Color Tracking&quot;</span><span class="s0">, </span><span class="s1">frame)</span>
+
+        <span class="s3"># Check for exit key</span>
+        <span class="s0">if </span><span class="s1">cv2.waitKey(</span><span class="s2">1</span><span class="s1">) == ord(</span><span class="s4">'q'</span><span class="s1">):</span>
+            <span class="s0">break</span>
+
+    <span class="s3"># Release camera and destroy windows</span>
+    <span class="s1">camera.release()</span>
+    <span class="s1">cv2.destroyAllWindows()</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ == </span><span class="s4">&quot;__main__&quot;</span><span class="s1">:</span>
+    <span class="s1">main()</span>
+</pre>
+</body>
+</html>
